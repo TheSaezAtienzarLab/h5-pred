@@ -6,7 +6,7 @@
 #SBATCH --gpus-per-node=1        # Keeping 1 GPU since you likely need it for testing
 #SBATCH --mem=32GB               # Reduced to 32GB
 #SBATCH --job-name=ctpred_test   # Changed name to indicate test run
-#SBATCH --output=predict_test_%j.log
+#SBATCH --output=ctpred_%j.log
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=duarte63@osu.edu
 
