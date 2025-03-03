@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=PAS2598
 #SBATCH --job-name=reorg_preds
-#SBATCH --time=6:00:00            # 6 hours should be sufficient for file operations
+#SBATCH --time=1:00:00            # 6 hours should be sufficient for file operations
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1       # Single task since we're mainly doing I/O
 #SBATCH --cpus-per-task=8         # 8 cores should handle parallel file operations
