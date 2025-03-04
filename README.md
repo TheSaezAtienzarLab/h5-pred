@@ -1,3 +1,20 @@
+# Description
+
+## scPrediXcan-DataFlow: A Comprehensive Pipeline for Cell-Type Specific TWAS Data Preparation
+
+A modular, GPU-accelerated pipeline for processing multi-omic data through the entire scPrediXcan workflow - from raw genotypes to cell-type specific gene expression predictions. This repository provides the infrastructure to prepare all necessary input files for transcriptome-wide association studies (TWAS) with single-cell resolution, enabling researchers to identify cell-type specific disease mechanisms.
+The pipeline integrates genotype processing, Enformer deep learning outputs, and ctPred gene expression predictions into standardized formats ready for association testing. Designed for both high-performance computing environments and standalone workstations, scPrediXcan-DataFlow bridges the gap between raw genomic data and meaningful insights into the cellular basis of complex diseases.
+
+### Key Features:
+
+Complete preparation of all scPrediXcan input files
+GPU-optimized processing of large genomic datasets
+Cell-type specific gene expression prediction
+SLURM integration for high-performance computing
+Modular design for flexible workflow adaptation
+
+## Developed at Ohio State University for researchers exploring the genetic basis of disease at single-cell resolution.
+
 # scPrediXcan Pipeline Documentation
 
 This documentation explains the pipeline for generating input files for scPrediXcan, a framework for cell-type-specific transcriptome-wide association studies (TWAS) that leverages single-cell data and deep learning.
