@@ -1,74 +1,116 @@
-# h5-pred: GPU-Accelerated Genomic Feature Processing
+# scPrediXcan Pipeline Documentation
+
+This documentation explains the pipeline for generating input files for scPrediXcan, a framework for cell-type-specific transcriptome-wide association studies (TWAS) that leverages single-cell data and deep learning.
 
 ## Overview
-A collection of Python scripts for efficient processing and reorganization of genomic feature data using GPU acceleration. This repository focuses on handling gene region features, H5 files, and cell type predictions with CUDA-enabled processing via cupy and cuDF.
 
-## Scripts
+The pipeline is organized into four major components that process genomic data into the formats required for scPrediXcan:
 
-### 1. `calculate_gene_region_means.py`
-Calculates mean features for gene regions using GPU acceleration.
-- Processes gene windows and their associated features
-- Groups regions by gene
-- Outputs averaged features per gene
-- Uses: cupy, pandas, numpy, tqdm
+1. **Genotype Processing**: Prepares genotype data from VCF files
+2. **Enformer Processing**: Processes Enformer deep learning model outputs
+3. **Cell Type Prediction**: Runs and processes cell-type specific gene expression predictions
+4. **scPrediXcan Inputs**: Organizes final files for scPrediXcan linearization step
 
-### 2. `gpu_h5_to_csv_means.py`
-Converts H5 files containing gene matrices to CSV format with calculated means.
-- Processes H5 files with 4x5313 matrices per gene
-- Calculates mean features using GPU
-- Exports results to CSV with gene metadata
-- Uses: h5py, cupy, pandas
+## Pipeline Components
 
-### 3. `split_predictions_by_cell_type.py`
-Reorganizes prediction data by cell type using GPU acceleration.
-- Splits combined prediction files into cell-type-specific files
-- Efficiently processes large datasets using GPU
-- Uses: cuDF, cupy
+### 1. Genotype Processing
 
-## Requirements
-- CUDA-capable GPU
-- Python 3.x
-- Dependencies:
-  - cupy
-  - cuDF
-  - pandas
-  - numpy
-  - h5py
-  - tqdm
+This component processes raw genotype data from VCF files into the formats required for scPrediXcan.
 
-## Installation
+**Key Scripts:**
+- `extract_and_process_genotype.sh`: Extracts genotypes from VCF files, converts to dosage values (0-2)
+- `predictdb_genotype_data_final.sh`: Reformats variant IDs (removing "chr" prefix, adding "_GRCh38" suffix)
+- `calculate_maf.py/calculate_maf.sh`: Calculates Minor Allele Frequency (MAF) for SNPs
+- `rsid_retrieval.py/rsid_retrieval.sh`: Retrieves reference SNP IDs (rsIDs) from dbSNP
 
-1. Clone the repository:
-
+**Data Flow:**
 ```
-git clone https://github.com/username/h5-pred.git
-cd h5-pred
+VCF files → Extract genotypes → Format variant IDs → Calculate MAF → Add rsIDs
 ```
 
-2. Install required packages:
+**Outputs:**
+- Genotype files in format required by PredictDb
+- Variant annotation files with MAF and rsIDs
 
+### 2. Enformer Processing
+
+This component processes outputs from Enformer, a deep learning model that predicts epigenomic features from DNA sequences.
+
+**Key Scripts:**
+- `gpu_h5_to_csv_means.py/gpu_h5_to_csv_means_slurm.sh`: Converts HDF5 files to CSV format
+- `calculate_gene_region_means.py/calculate_gene_region_means_slurm.sh`: Calculates mean epigenomic features for gene regions
+
+**Data Flow:**
 ```
-conda install cupy-cuda11x pandas numpy h5py tqdm
+Enformer H5 files → GPU-accelerated processing → Gene region means
 ```
 
-Note: Replace `cuda11x` with your CUDA version
+**Outputs:**
+- Processed CSV files with gene-level epigenomic features
+- Gene region mean features used as input for cell-type prediction
 
-## Usage
-Each script can be run independently from the command line. Some scripts use hardcoded paths that need to be modified before use.
+### 3. Cell Type Prediction
 
-## Directory Structure
+This component runs the ctPred model to predict cell-type-specific gene expression and processes the outputs.
 
-h5-pred/
-├── calculate_gene_region_means.py
-├── gpu_h5_to_csv_means.py
-├── split_predictions_by_cell_type.py
-└── .gitignore
+**Key Scripts:**
+- `ctpred_genome.py/ctpred_genome_slurm.sh`: Predicts gene expression using genomic features
+- `split_predictions_by_cell_type.py/split_predictions_by_cell_type_slurm.sh`: Organizes predictions by cell type
+- `renaming.py`: Renames columns for consistency
+- `transform_expression_format.py`: Transforms files to PredictDb format
+- `validate_cell_type_predictions.py`: Validates output structure and content
 
-## Ignored Directories
-- `/ctPred`: Directory containing cell type prediction data (ignored in git)
+**Data Flow:**
+```
+Gene features → ctPred model → Split by cell type → Rename columns → Format for PredictDb
+```
 
-## Contributing
-[Add contribution guidelines if applicable]
+**Outputs:**
+- Cell-type-specific gene expression predictions
+- Files formatted for use in scPrediXcan linearization step
 
-## License
- 
+### 4. scPrediXcan Inputs
+
+This component organizes the final processed files needed for step 2 of scPrediXcan (linearization of ctPred into ℓ-ctPred).
+
+**Directories:**
+- `gene_annotation/`: Gene annotation files (Gene_anno.txt)
+- `snp_annotation/`: SNP annotation files from genotype processing
+- `genotype/`: Final processed genotype files
+- `gene_expression/`: Cell-type-specific gene expression predictions
+
+These files serve as inputs to the PredictDb-nextflow pipeline, which creates the SNP-based elastic net models (ℓ-ctPred) used in the final scPrediXcan association tests.
+
+## Connection to scPrediXcan Framework
+
+This pipeline implements the data preparation for the first two steps of the three-step scPrediXcan framework:
+
+1. **Step 1**: Training ctPred (cell-type-specific gene expression prediction model)
+   - Uses Enformer as a feature extractor
+   - Predicts cell-type-specific gene expression from DNA sequences
+
+2. **Step 2**: Linearizing ctPred into ℓ-ctPred
+   - Creates SNP-based elastic net models from ctPred predictions
+   - Requires the four types of input files organized in our pipeline
+
+3. **Step 3**: Performing association tests with S-PrediXcan
+   - Uses ℓ-ctPred and GWAS summary statistics
+   - Identifies genes associated with traits/diseases
+
+## Running the Pipeline
+
+For detailed instructions on how to run each component of the pipeline, refer to the slurm scripts in the respective directories:
+
+1. For genotype processing: `genotype_processing/scripts/`
+2. For Enformer processing: `enformer_processing/scripts/`
+3. For cell type prediction: `cell_type_predictions/`
+4. For running PredictDb: See `README.md` and consult the PredictDb-nextflow documentation
+
+## Technical Considerations
+
+- **GPU Requirements**: Several components (Enformer processing, ctPred) require GPU acceleration
+- **Memory Usage**: Processing genomes and large H5 files requires significant memory (32GB+)
+- **Storage**: The pipeline generates large intermediate files, especially during Enformer processing
+- **SLURM Integration**: All major scripts have SLURM versions for high-performance computing environments
+
+This pipeline enables researchers to leverage the power of deep learning and single-cell data to conduct cell-type-specific transcriptome-wide association studies, providing insights into the cellular mechanisms of complex diseases.
